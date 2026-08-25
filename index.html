@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jogo do Pensador — Globalização, Cidadania e Direitos Humanos</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple: #7c3aed;
+      --purple-light: #a78bfa;
+      --purple-dark: #4c1d95;
+      --blue: #2563eb;
+      --blue-light: #60a5fa;
+      --yellow: #f59e0b;
+      --yellow-light: #fde68a;
+      --pink: #ec4899;
+      --green: #10b981;
+      --red: #ef4444;
+      --bg-from: #0f0a2e;
+      --bg-to: #1e1254;
+    }
+
+    html, body {
+      min-height: 100%;
+      font-family: 'Nunito', sans-serif;
+      background: linear-gradient(135deg, var(--bg-from) 0%, var(--bg-to) 50%, #0a1f4e 100%);
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    /* ===== CANVAS CONFETTI ===== */
+    #confetti-canvas {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 9999;
+    }
+
+    /* ===== SCREENS ===== */
+    .screen {
+      display: none;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      animation: fadeIn 0.5s ease;
+    }
+    .screen.active { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== INTRO ===== */
+    .game-title {
+      font-size: clamp(2rem, 6vw, 3.6rem);
+      font-weight: 900;
+      text-align: center;
+      line-height: 1.15;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    .game-subtitle {
+      font-size: clamp(0.95rem, 2.5vw, 1.2rem);
+      color: #c4b5fd;
+      text-align: center;
+      margin-bottom: 40px;
+      max-width: 500px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      color: #fff;
+      border: none;
+      padding: 18px 48px;
+      border-radius: 50px;
+      font-size: 1.3rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 8px 32px rgba(124,58,237,0.45);
+      font-family: 'Nunito', sans-serif;
+    }
+    .btn-primary:hover { transform: scale(1.05); box-shadow: 0 12px 40px rgba(124,58,237,0.6); }
+    .btn-primary:active { transform: scale(0.97); }
+
+    .intro-gems {
+      display: flex; gap: 18px; margin-bottom: 36px;
+    }
+    .gem {
+      width: 52px; height: 52px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem;
+      animation: float 3s ease-in-out infinite;
+    }
+    .gem:nth-child(1) { background: linear-gradient(135deg, #7c3aed, #a78bfa); animation-delay: 0s; }
+    .gem:nth-child(2) { background: linear-gradient(135deg, #2563eb, #60a5fa); animation-delay: 0.5s; }
+    .gem:nth-child(3) { background: linear-gradient(135deg, #f59e0b, #fde68a); animation-delay: 1s; }
+    .gem:nth-child(4) { background: linear-gradient(135deg, #ec4899, #f9a8d4); animation-delay: 1.5s; }
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    /* ===== GAME SCREEN ===== */
+    .game-container {
+      width: 100%; max-width: 720px;
+    }
+
+    /* TOP BAR */
+    .top-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px; gap: 12px;
+    }
+    .level-badge {
+      font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em;
+      padding: 6px 14px; border-radius: 20px;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      text-transform: uppercase; white-space: nowrap;
+    }
+    .prize-display {
+      font-size: 1.1rem; font-weight: 900; color: var(--yellow-light);
+      text-shadow: 0 0 16px rgba(245,158,11,0.6);
+      white-space: nowrap;
+    }
+    .prize-label { font-size: 0.7rem; color: #a78bfa; font-weight: 700; display: block; text-align: right; }
+
+    /* PROGRESS */
+    .progress-wrap { margin-bottom: 24px; }
+    .progress-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; color: #c4b5fd; margin-bottom: 6px; font-weight: 700;
+    }
+    .progress-bar-bg {
+      height: 10px; background: rgba(255,255,255,0.1);
+      border-radius: 10px; overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%; border-radius: 10px;
+      background: linear-gradient(90deg, var(--purple-light), var(--blue-light), var(--yellow));
+      transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 0 12px rgba(167,139,250,0.5);
+    }
+
+    /* QUESTION CARD */
+    .question-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 24px;
+      padding: 32px 28px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(12px);
+      transition: box-shadow 0.3s;
+    }
+    .question-number {
+      font-size: 0.78rem; font-weight: 800; color: var(--purple-light);
+      text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;
+    }
+    .question-text {
+      font-size: clamp(1.05rem, 2.8vw, 1.3rem);
+      font-weight: 700;
+      line-height: 1.6;
+      color: #f1f5f9;
+    }
+
+    /* OPTIONS */
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 500px) { .options-grid { grid-template-columns: 1fr; } }
+
+    .option-btn {
+      background: rgba(255,255,255,0.07);
+      border: 2px solid rgba(255,255,255,0.15);
+      border-radius: 16px;
+      padding: 18px 16px;
+      color: #e2e8f0;
+      font-size: clamp(0.9rem, 2.2vw, 1.05rem);
+      font-weight: 700;
+      cursor: pointer;
+      text-align: left;
+      display: flex; align-items: center; gap: 12px;
+      transition: transform 0.15s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
+      font-family: 'Nunito', sans-serif;
+      line-height: 1.4;
+    }
+    .option-btn:hover:not(:disabled) {
+      background: rgba(124,58,237,0.25);
+      border-color: var(--purple-light);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(124,58,237,0.3);
+    }
+    .option-btn:disabled { cursor: default; }
+    .option-btn.correct {
+      background: rgba(16,185,129,0.25) !important;
+      border-color: #10b981 !important;
+      box-shadow: 0 0 20px rgba(16,185,129,0.4) !important;
+      animation: pulseGreen 0.5s ease;
+    }
+    .option-btn.wrong {
+      background: rgba(239,68,68,0.2) !important;
+      border-color: #ef4444 !important;
+    }
+    .option-btn.eliminated {
+      opacity: 0.25;
+      pointer-events: none;
+    }
+    @keyframes pulseGreen {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    .option-letter {
+      min-width: 32px; height: 32px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.12);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 0.85rem; color: var(--purple-light);
+      flex-shrink: 0;
+    }
+    .option-btn.correct .option-letter { background: #10b981; color: #fff; }
+    .option-btn.wrong .option-letter { background: #ef4444; color: #fff; }
+
+    /* BOTTOM BAR */
+    .bottom-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .hint-btn {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(245,158,11,0.15);
+      border: 2px solid rgba(245,158,11,0.4);
+      border-radius: 50px;
+      padding: 10px 20px;
+      color: var(--yellow-light);
+      font-size: 0.88rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      font-family: 'Nunito', sans-serif;
+      white-space: nowrap;
+    }
+    .hint-btn:hover:not(:disabled) { background: rgba(245,158,11,0.28); transform: scale(1.04); }
+    .hint-btn:disabled { opacity: 0.35; cursor: default; }
+    .hint-counter {
+      font-size: 0.7rem; color: #fde68a; font-weight: 700;
+    }
+
+    .restart-mini {
+      background: transparent;
+      border: 2px solid rgba(255,255,255,0.18);
+      border-radius: 50px;
+      padding: 10px 18px;
+      color: #94a3b8;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      font-family: 'Nunito', sans-serif;
+      white-space: nowrap;
+    }
+    .restart-mini:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+
+    /* FEEDBACK OVERLAY */
+    .feedback-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      display: none; align-items: center; justify-content: center;
+      padding: 24px;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(6px);
+      animation: fadeIn 0.25s ease;
+    }
+    .feedback-overlay.active { display: flex; }
+    .feedback-card {
+      background: linear-gradient(135deg, #1e1254, #0f0a2e);
+      border-radius: 28px;
+      padding: 36px 32px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+      border: 2px solid rgba(255,255,255,0.12);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+      animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(40px) scale(0.92); opacity: 0; }
+      to   { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .feedback-icon { font-size: 3.5rem; margin-bottom: 16px; animation: bounceIn 0.5s ease; }
+    @keyframes bounceIn {
+      0% { transform: scale(0); }
+      60% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    .feedback-title {
+      font-size: 1.7rem; font-weight: 900; margin-bottom: 10px;
+    }
+    .feedback-title.ok { color: #34d399; }
+    .feedback-title.err { color: #f87171; }
+    .feedback-thinker {
+      font-size: 1rem; font-weight: 700; color: var(--purple-light);
+      margin-bottom: 12px;
+    }
+    .feedback-explanation {
+      font-size: 0.95rem; color: #cbd5e1; line-height: 1.7; margin-bottom: 24px;
+    }
+    .btn-next {
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      color: #fff; border: none; padding: 14px 36px;
+      border-radius: 50px; font-size: 1rem; font-weight: 800;
+      cursor: pointer; font-family: 'Nunito', sans-serif;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 6px 24px rgba(124,58,237,0.4);
+    }
+    .btn-next:hover { transform: scale(1.05); }
+
+    /* SHAKE */
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-6px); }
+      80% { transform: translateX(6px); }
+    }
+    .shake { animation: shake 0.45s ease; }
+
+    /* GLOW */
+    @keyframes glowPulse {
+      0%,100% { box-shadow: 0 0 0px rgba(167,139,250,0); }
+      50% { box-shadow: 0 0 40px rgba(167,139,250,0.6); }
+    }
+    .question-card.glow { animation: glowPulse 0.8s ease; }
+
+    /* ===== END SCREEN ===== */
+    .end-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 28px;
+      padding: 36px 28px;
+      max-width: 680px; width: 100%;
+      backdrop-filter: blur(12px);
+    }
+    .end-title {
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .end-score {
+      text-align: center; font-size: 1.1rem; color: #c4b5fd;
+      margin-bottom: 28px; font-weight: 700;
+    }
+    .end-prize {
+      text-align: center;
+      font-size: clamp(2rem, 6vw, 3rem);
+      font-weight: 900;
+      color: var(--yellow-light);
+      text-shadow: 0 0 24px rgba(245,158,11,0.5);
+      margin-bottom: 28px;
+    }
+    .rayox-title {
+      font-size: 0.8rem; font-weight: 800; letter-spacing: 0.1em;
+      color: var(--purple-light); text-transform: uppercase; margin-bottom: 14px;
+    }
+    .thinker-recap {
+      display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px;
+    }
+    .thinker-item {
+      background: rgba(255,255,255,0.05);
+      border-left: 4px solid var(--purple-light);
+      border-radius: 0 12px 12px 0;
+      padding: 12px 16px;
+    }
+    .thinker-item-name {
+      font-size: 0.9rem; font-weight: 800; color: #a78bfa; margin-bottom: 4px;
+    }
+    .thinker-item-text {
+      font-size: 0.82rem; color: #94a3b8; line-height: 1.5;
+    }
+
+    /* LEVEL TRANSITION */
+    .level-toast {
+      position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-80px);
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      padding: 14px 32px; border-radius: 50px;
+      font-size: 1rem; font-weight: 800;
+      box-shadow: 0 8px 32px rgba(124,58,237,0.5);
+      z-index: 200;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      white-space: nowrap;
+    }
+    .level-toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* STARS */
+    .stars-wrap { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+    .star { font-size: 2rem; animation: starPop 0.4s ease backwards; }
+    .star:nth-child(2) { animation-delay: 0.15s; }
+    .star:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes starPop {
+      0% { transform: scale(0) rotate(-30deg); opacity: 0; }
+      70% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0); opacity: 1; }
+    }
+    .stars-wrap.hidden { display: none; }
+
+    /* FLOATING PARTICLES BG */
+    .particle {
+      position: fixed; border-radius: 50%;
+      pointer-events: none; z-index: 0;
+      animation: drift linear infinite;
+      opacity: 0.12;
+    }
+    @keyframes drift {
+      0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+      10% { opacity: 0.15; }
+      90% { opacity: 0.10; }
+      100% { transform: translateY(-120px) rotate(360deg); opacity: 0; }
+    }
+
+    /* LEVEL DOTS */
+    .level-dots {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .level-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+      transition: background 0.4s, transform 0.3s;
+    }
+    .level-dot.done { background: var(--green); transform: scale(1.2); }
+    .level-dot.active { background: var(--yellow); transform: scale(1.3); box-shadow: 0 0 8px rgba(245,158,11,0.7); animation: dotPulse 1.2s ease infinite; }
+    @keyframes dotPulse {
+      0%,100% { box-shadow: 0 0 6px rgba(245,158,11,0.5); }
+      50% { box-shadow: 0 0 16px rgba(245,158,11,0.9); }
+    }
+
+    /* SCORE STEPPER (mini prize ladder side) */
+    .prize-ladder {
+      position: fixed; right: 16px; top: 50%;
+      transform: translateY(-50%);
+      display: flex; flex-direction: column-reverse; gap: 4px;
+      z-index: 10;
+    }
+    @media (max-width: 900px) { .prize-ladder { display: none; } }
+    .ladder-item {
+      font-size: 0.65rem; font-weight: 800;
+      color: rgba(255,255,255,0.25);
+      text-align: right;
+      padding: 3px 8px; border-radius: 6px;
+      transition: color 0.3s, background 0.3s;
+      white-space: nowrap;
+    }
+    .ladder-item.current {
+      color: var(--yellow-light);
+      background: rgba(245,158,11,0.15);
+      border: 1px solid rgba(245,158,11,0.3);
+    }
+    .ladder-item.earned {
+      color: #34d399;
+    }
+
+    /* MOBILE TWEAKS */
+    @media (max-width: 480px) {
+      .question-card { padding: 22px 18px; }
+      .option-btn { padding: 14px 12px; font-size: 0.88rem; }
+      .bottom-bar { flex-wrap: wrap; }
+      .hint-btn, .restart-mini { flex: 1; justify-content: center; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+<div id="level-toast" class="level-toast"></div>
+
+<!-- Prize ladder (desktop only) -->
+<div class="prize-ladder" id="prize-ladder"></div>
+
+<!-- ===== INTRO SCREEN ===== -->
+<div id="screen-intro" class="screen active">
+  <div class="intro-gems">
+    <div class="gem">🌐</div>
+    <div class="gem">⚖️</div>
+    <div class="gem">💡</div>
+    <div class="gem">🏛️</div>
+  </div>
+  <h1 class="game-title">Jogo do Pensador</h1>
+  <p class="game-subtitle">Globalização · Cidadania · Direitos Humanos<br>15 perguntas. 4 níveis. R$ 1.000.000 (fictício) em jogo!</p>
+  <button class="btn-primary" onclick="startGame()">▶ Começar</button>
+  <p style="margin-top:24px;font-size:0.78rem;color:#6b7280;text-align:center;">Use a ajuda "Eliminar 2 Erradas" com sabedoria — 1 por nível.</p>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div id="screen-game" class="screen">
+  <div class="game-container">
+    <!-- TOP BAR -->
+    <div class="top-bar">
+      <div class="level-badge" id="level-badge">Nível 1 — Fácil</div>
+      <div>
+        <span class="prize-label">🏆 Prêmio fictício</span>
+        <span class="prize-display" id="prize-display">R$ 0</span>
+      </div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span id="progress-text">Pergunta 1 de 15</span>
+        <div class="level-dots">
+          <div class="level-dot" id="ldot-1" title="Nível 1"></div>
+          <div class="level-dot" id="ldot-2" title="Nível 2"></div>
+          <div class="level-dot" id="ldot-3" title="Nível 3"></div>
+          <div class="level-dot" id="ldot-4" title="Nível 4"></div>
+        </div>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- QUESTION CARD -->
+    <div class="question-card" id="question-card">
+      <div class="question-number" id="q-number">Pergunta 1</div>
+      <div class="question-text" id="q-text"></div>
+    </div>
+
+    <!-- OPTIONS -->
+    <div class="options-grid" id="options-grid"></div>
+
+    <!-- BOTTOM BAR -->
+    <div class="bottom-bar">
+      <button class="hint-btn" id="hint-btn" onclick="useHint()">
+        <span>✂️</span>
+        <span>Eliminar 2 Erradas</span>
+        <span class="hint-counter" id="hint-counter">(1 disponível)</span>
+      </button>
+      <button class="restart-mini" onclick="confirmRestart()">↺ Reiniciar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FEEDBACK OVERLAY ===== -->
+<div class="feedback-overlay" id="feedback-overlay">
+  <div class="feedback-card" id="feedback-card">
+    <div class="feedback-icon" id="feedback-icon"></div>
+    <div class="feedback-title" id="feedback-title"></div>
+    <div class="feedback-thinker" id="feedback-thinker"></div>
+    <p class="feedback-explanation" id="feedback-explanation"></p>
+    <button class="btn-next" id="btn-next" onclick="nextQuestion()"></button>
+  </div>
+</div>
+
+<!-- ===== END SCREEN ===== -->
+<div id="screen-end" class="screen">
+  <div class="end-card">
+    <div class="stars-wrap" id="end-stars">
+      <span class="star">⭐</span>
+      <span class="star">⭐</span>
+      <span class="star">⭐</span>
+    </div>
+    <div class="end-title" id="end-title">Parabéns!</div>
+    <div class="end-score" id="end-score"></div>
+    <div class="end-prize" id="end-prize"></div>
+    <div class="rayox-title">📚 Raio-X dos Pensadores</div>
+    <div class="thinker-recap" id="thinker-recap"></div>
+    <div style="text-align:center;">
+      <button class="btn-primary" onclick="startGame()">🔄 Jogar Novamente</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  DATA
+// ============================================================
+
+const THINKERS_SUMMARY = [
+  { name: "Giovanni Arrighi", text: "Crítico da globalização: vê no discurso globalizante uma ideologia para enfraquecer o Estado e favorecer grandes corporações e países ricos via ONU e OMC." },
+  { name: "Theotônio dos Santos", text: "Sociólogo brasileiro cético da globalização: defende que ela serve para enfraquecer o Estado em benefício de corporações e países desenvolvidos que dominam instituições internacionais." },
+  { name: "Amin Maalouf", text: "Sociólogo libanês crítico: afirma que a globalização foi conduzida pelos EUA e Europa e está longe de cumprir os ideais universalistas que proclama." },
+  { name: "Néstor García Canclini", text: "Antropólogo argentino: define a globalização como um 'objeto cultural não identificado' — sem consenso de conceito ou data de início — que não só homogeneíza, mas também fragmenta e cria desigualdades." },
+  { name: "Milton Santos", text: "Geógrafo brasileiro: critica o globalismo, mas propõe 'outra globalização' — as bases tecnológicas que geram desigualdades poderiam, com uso alternativo, produzir uma globalização mais humana." },
+  { name: "Zygmunt Bauman", text: "Sociólogo polonês: argumenta que mobilidade e tempo tornaram-se marcadores de classe social na era global — quem tem capital se move livremente; quem não tem, fica restrito." },
+  { name: "Thomas H. Marshall", text: "Estabeleceu a sequência histórica clássica dos direitos de cidadania: civis (séc. XVIII), políticos (séc. XIX) e sociais (séc. XX)." },
+  { name: "José Murilo de Carvalho", text: "Historiador brasileiro que cunhou 'estadania': no Brasil, a ordem de Marshall foi invertida — direitos sociais vieram primeiro, reforçando a percepção de que o Estado é mais importante que a sociedade." },
+  { name: "Maria Victoria Benevides", text: "Socióloga que caracteriza a democracia semidireta da CF/1988 como um regime que combina representação e participação direta, essencial para a efetivação da cidadania." },
+];
+
+const ALL_QUESTIONS = [
+  // ===== NÍVEL 1 — FÁCIL (0–3) =====
+  {
+    level: 1,
+    question: "Este historiador brasileiro criou o conceito de 'estadania' para explicar a relação entre o povo brasileiro e o Estado. Quem é ele?",
+    options: ["José Murilo de Carvalho", "Milton Santos", "Theotônio dos Santos", "Thomas H. Marshall"],
+    correct: 0,
+    thinker: "José Murilo de Carvalho",
+    explanation: "José Murilo de Carvalho cunhou 'estadania' para descrever como, no Brasil, os direitos chegaram pelo Estado (de cima para baixo), criando uma percepção de que o Estado vale mais do que a sociedade."
+  },
+  {
+    level: 1,
+    question: "Este sociólogo polonês ficou famoso por analisar como a mobilidade — a capacidade de se deslocar livremente — divide as classes sociais na era da globalização. Quem é ele?",
+    options: ["Zygmunt Bauman", "Giovanni Arrighi", "Amin Maalouf", "Néstor García Canclini"],
+    correct: 0,
+    thinker: "Zygmunt Bauman",
+    explanation: "Bauman defendia que mobilidade e tempo diferenciam classes: quem tem capital se desloca livremente pelo mundo globalizado; quem não tem, fica preso em restrições espaciais."
+  },
+  {
+    level: 1,
+    question: "Este geógrafo brasileiro, mesmo sendo crítico do globalismo dominante, propõe que as mesmas bases tecnológicas que geram desigualdades poderiam promover 'outra globalização', mais humana. Quem é ele?",
+    options: ["Milton Santos", "Theotônio dos Santos", "Giovanni Arrighi", "Zygmunt Bauman"],
+    correct: 0,
+    thinker: "Milton Santos",
+    explanation: "Milton Santos acreditava nos 'potenciais democráticos e libertários' de um uso alternativo da tecnologia — a mesma infraestrutura do capital poderia servir a uma globalização humanizada."
+  },
+  {
+    level: 1,
+    question: "Esta socióloga brasileira caracteriza a Constituição de 1988 como uma democracia semidireta, pois inclui formas de participação direta do povo que, sem substituir a representação, ajudam a efetivar a cidadania. Quem é ela?",
+    options: ["Maria Victoria Benevides", "Amin Maalouf", "Néstor García Canclini", "Theotônio dos Santos"],
+    correct: 0,
+    thinker: "Maria Victoria Benevides",
+    explanation: "Benevides entende que a CF/1988 cria uma democracia semidireta: a participação direta do povo (referendo, plebiscito etc.) não substitui a representação, mas é essencial para a conscientização e efetivação da cidadania."
+  },
+
+  // ===== NÍVEL 2 — MÉDIO (4–7) =====
+  {
+    level: 2,
+    question: "Qual pensador afirma que a globalização é um 'objeto cultural não identificado', pois não há consenso sobre quando o fenômeno começou nem sobre seu próprio conceito?",
+    options: ["Néstor García Canclini", "Milton Santos", "Amin Maalouf", "Zygmunt Bauman"],
+    correct: 0,
+    thinker: "Néstor García Canclini",
+    explanation: "García Canclini usa a expressão 'objeto cultural não identificado' justamente para marcar a falta de consenso conceitual e temporal sobre a globalização — e ressalta que ela fragmenta tanto quanto homogeneíza."
+  },
+  {
+    level: 2,
+    question: "Qual pensador estabeleceu a divisão clássica dos direitos de cidadania em três estágios históricos — civis, políticos e sociais —, associando cada um a um século diferente?",
+    options: ["Thomas H. Marshall", "José Murilo de Carvalho", "Maria Victoria Benevides", "Giovanni Arrighi"],
+    correct: 0,
+    thinker: "Thomas H. Marshall",
+    explanation: "Marshall mapeou os três estágios: direitos civis (liberdades individuais, séc. XVIII), políticos (participação, séc. XIX) e sociais (bem-estar, séc. XX) — uma sequência histórica que se tornou referência clássica."
+  },
+  {
+    level: 2,
+    question: "Qual pensador defende que o 'mercado global' é 'desfrutado sobretudo pelos que têm dinheiro' e que a velocidade das notícias não se traduz necessariamente em informação efetiva para as populações?",
+    options: ["Milton Santos", "Zygmunt Bauman", "Néstor García Canclini", "Amin Maalouf"],
+    correct: 0,
+    thinker: "Milton Santos",
+    explanation: "Milton Santos criticava o globalismo vigente nesse ponto preciso: a circulação de informação é veloz, mas inacessível para a maioria; e o mercado global só é real para quem tem poder aquisitivo."
+  },
+  {
+    level: 2,
+    question: "Qual pensador afirma que a globalização foi conduzida principalmente pelos países da Europa e pelos Estados Unidos e está 'muito distante de atender aos ideais universalistas que ostenta como fundamento'?",
+    options: ["Amin Maalouf", "Giovanni Arrighi", "Milton Santos", "Theotônio dos Santos"],
+    correct: 0,
+    thinker: "Amin Maalouf",
+    explanation: "O sociólogo libanês Amin Maalouf é o autor dessa crítica direta: os EUA e a Europa conduziram a globalização, mas os ideais universalistas proclamados não correspondem à realidade, especialmente para os países periféricos."
+  },
+
+  // ===== NÍVEL 3 — MÉDIO-AVANÇADO (8–11) =====
+  {
+    level: 3,
+    question: "\"A possibilidade de deslocamento tornou-se um elemento fundamental para distinguir quem tem o capital necessário para a mobilidade\" de quem não tem — com isso, tempo e espaço passam a ser dimensões de desigualdade social. Quem escreveu isso?",
+    options: ["Zygmunt Bauman", "Milton Santos", "Néstor García Canclini", "Giovanni Arrighi"],
+    correct: 0,
+    thinker: "Zygmunt Bauman",
+    explanation: "Bauman analisa como a 'liquidez' da modernidade cria uma divisão entre os que podem se mover livremente (os de cima) e os que são segregados espacialmente (os de baixo), tornando mobilidade sinônimo de privilégio."
+  },
+  {
+    level: 3,
+    question: "Um pensador argumenta que a globalização não apenas homogeneíza, mas também \"fragmenta, desagrega e cria desigualdades, reconfigurando as relações entre cultura, consumo e cidadania de modo nem sempre benéfico\". Quem é esse pensador?",
+    options: ["Néstor García Canclini", "Theotônio dos Santos", "Milton Santos", "Amin Maalouf"],
+    correct: 0,
+    thinker: "Néstor García Canclini",
+    explanation: "García Canclini vai além da tese da homogeneização: para ele, a globalização é ambivalente — homogeneíza e fragmenta ao mesmo tempo, reconfigurando cultura, consumo e cidadania de formas contraditórias."
+  },
+  {
+    level: 3,
+    question: "Este pensador, junto de outro teórico crítico, defende que a globalização é \"um grande discurso ideológico empregado para enfraquecer o Estado e favorecer os interesses das grandes corporações e dos países desenvolvidos, que dominam instituições como a ONU e a OMC\". Identificando a nacionalidade BRASILEIRA desse par, quem é o pensador brasileiro?",
+    options: ["Theotônio dos Santos", "Giovanni Arrighi", "Néstor García Canclini", "José Murilo de Carvalho"],
+    correct: 0,
+    thinker: "Theotônio dos Santos",
+    explanation: "A crítica à globalização como discurso ideológico é compartilhada por Arrighi (italiano) e Theotônio dos Santos (brasileiro). O pensador brasileiro desse duo crítico é Theotônio dos Santos."
+  },
+  {
+    level: 3,
+    question: "\"As bases técnicas e tecnológicas que favorecem os aspectos negativos do capitalismo internacional podem promover uma globalização mais humana.\" Qual pensador propõe essa 'outra globalização' possível?",
+    options: ["Milton Santos", "Giovanni Arrighi", "Maria Victoria Benevides", "Zygmunt Bauman"],
+    correct: 0,
+    thinker: "Milton Santos",
+    explanation: "Milton Santos distingue a globalização-como-é (perversa) da globalização-como-poderia-ser: as mesmas ferramentas tecnológicas do capital poderiam ser usadas de forma libertária e democrática."
+  },
+
+  // ===== NÍVEL 4 — DIFÍCIL (12–14) =====
+  {
+    level: 4,
+    question: "Qual pensador brasileiro inverteu, em relação ao esquema clássico de Marshall, a ordem histórica de conquista dos direitos — com os direitos SOCIAIS vindo antes dos políticos e civis —, cunhando um conceito próprio para essa inversão?",
+    options: ["José Murilo de Carvalho", "Theotônio dos Santos", "Milton Santos", "Maria Victoria Benevides"],
+    correct: 0,
+    thinker: "José Murilo de Carvalho",
+    explanation: "José Murilo de Carvalho cunhou 'estadania': no Brasil, direitos sociais (Vargas) precederam os políticos e civis, criando a percepção de que o Estado concede direitos, em vez de a sociedade conquistá-los."
+  },
+  {
+    level: 4,
+    question: "Complete a frase de Marshall: os direitos civis são \"expressos na garantia das liberdades individuais\" (séc. XVIII); os políticos são \"direitos de participar da vida política\" (séc. XIX); e os direitos sociais são os \"essenciais para a construção de uma vida digna, tendo por base __________ socialmente estabelecidos\" (séc. XX). Qual é a expressão que preenche a lacuna?",
+    options: ["padrões de bem-estar", "formas de governo", "contratos coletivos", "mecanismos de controle"],
+    correct: 0,
+    thinker: "Thomas H. Marshall",
+    explanation: "A expressão exata de Marshall é 'padrões de bem-estar socialmente estabelecidos' — os direitos sociais não são definidos de forma abstrata, mas segundo parâmetros construídos historicamente pela sociedade."
+  },
+  {
+    level: 4,
+    question: "Dois pensadores críticos da globalização — um teórico italiano e um sociólogo brasileiro — compartilham a mesma tese de que o discurso globalizante serve para enfraquecer o Estado em favor de corporações. Qual deles é italiano e qual é brasileiro, respectivamente?",
+    options: [
+      "Giovanni Arrighi (italiano) e Theotônio dos Santos (brasileiro)",
+      "Amin Maalouf (italiano) e Milton Santos (brasileiro)",
+      "Néstor García Canclini (italiano) e José Murilo de Carvalho (brasileiro)",
+      "Zygmunt Bauman (italiano) e Theotônio dos Santos (brasileiro)"
+    ],
+    correct: 0,
+    thinker: "Giovanni Arrighi & Theotônio dos Santos",
+    explanation: "Giovanni Arrighi é italiano e Theotônio dos Santos é brasileiro — ambos compartilham a tese de que a globalização é um discurso ideológico para enfraquecer o Estado e beneficiar corporações e países ricos via ONU e OMC."
+  },
+];
+
+// Prize table
+const PRIZE_TABLE = [
+  "R$ 1.000", "R$ 2.000", "R$ 3.000", "R$ 5.000",
+  "R$ 10.000", "R$ 20.000", "R$ 50.000", "R$ 75.000",
+  "R$ 150.000", "R$ 250.000", "R$ 350.000", "R$ 500.000",
+  "R$ 700.000", "R$ 850.000", "R$ 1.000.000"
+];
+
+const LEVEL_NAMES = ["", "Nível 1 — Fácil", "Nível 2 — Médio", "Nível 3 — Médio-Avançado", "Nível 4 — 🔥 VALENDO O MILHÃO"];
+const OPTION_LETTERS = ["A", "B", "C", "D"];
+
+// ============================================================
+//  STATE
+// ============================================================
+let questions = [];
+let currentIndex = 0;
+let score = 0;
+let hintUsedPerLevel = { 1: false, 2: false, 3: false, 4: false };
+let answeredCorrectly = [];
+let questionsPlayed = [];
+let gameOver = false;
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ============================================================
+//  PARTICLES + PRIZE LADDER INIT
+// ============================================================
+function createParticles() {
+  const colors = ['#a78bfa','#60a5fa','#f59e0b','#34d399','#f9a8d4'];
+  for (let i = 0; i < 18; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    const size = Math.random() * 10 + 4;
+    el.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-duration:${Math.random()*16+10}s;
+      animation-delay:${Math.random()*10}s;
+    `;
+    document.body.appendChild(el);
+  }
+}
+createParticles();
+
+function buildPrizeLadder() {
+  const ladder = document.getElementById('prize-ladder');
+  ladder.innerHTML = '';
+  PRIZE_TABLE.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'ladder-item';
+    el.id = `ladder-${i}`;
+    el.textContent = p;
+    ladder.appendChild(el);
+  });
+}
+
+function updateLadder(idx) {
+  PRIZE_TABLE.forEach((_, i) => {
+    const el = document.getElementById(`ladder-${i}`);
+    if (!el) return;
+    el.classList.remove('current','earned');
+    if (i < idx) el.classList.add('earned');
+    else if (i === idx) el.classList.add('current');
+  });
+}
+
+function updateLevelDots(level) {
+  for (let i = 1; i <= 4; i++) {
+    const dot = document.getElementById(`ldot-${i}`);
+    if (!dot) return;
+    dot.classList.remove('done','active');
+    if (i < level) dot.classList.add('done');
+    else if (i === level) dot.classList.add('active');
+  }
+}
+
+// ============================================================
+//  GAME INIT
+// ============================================================
+function startGame() {
+  // Shuffle questions per level
+  const lvl1 = shuffle(ALL_QUESTIONS.filter(q => q.level === 1));
+  const lvl2 = shuffle(ALL_QUESTIONS.filter(q => q.level === 2));
+  const lvl3 = shuffle(ALL_QUESTIONS.filter(q => q.level === 3));
+  const lvl4 = shuffle(ALL_QUESTIONS.filter(q => q.level === 4));
+  questions = [...lvl1, ...lvl2, ...lvl3, ...lvl4];
+
+  // Shuffle options within each question
+  questions = questions.map(q => {
+    const combined = q.options.map((opt, i) => ({ opt, isCorrect: i === q.correct }));
+    const shuffled = shuffle(combined);
+    return {
+      ...q,
+      options: shuffled.map(x => x.opt),
+      correct: shuffled.findIndex(x => x.isCorrect)
+    };
+  });
+
+  currentIndex = 0;
+  score = 0;
+  hintUsedPerLevel = { 1: false, 2: false, 3: false, 4: false };
+  answeredCorrectly = [];
+  questionsPlayed = [];
+  gameOver = false;
+
+  buildPrizeLadder();
+  showScreen('screen-game');
+  renderQuestion();
+}
+
+// ============================================================
+//  RENDER QUESTION
+// ============================================================
+function renderQuestion() {
+  const q = questions[currentIndex];
+  const qNum = currentIndex + 1;
+
+  // Level badge
+  document.getElementById('level-badge').textContent = LEVEL_NAMES[q.level];
+
+  // Level dots
+  updateLevelDots(q.level);
+
+  // Prize ladder
+  updateLadder(currentIndex);
+
+  // Prize
+  const prize = currentIndex > 0 ? PRIZE_TABLE[currentIndex - 1] : "R$ 0";
+  document.getElementById('prize-display').textContent = prize;
+
+  // Progress
+  const pct = Math.round((currentIndex / 15) * 100);
+  document.getElementById('progress-text').textContent = `Pergunta ${qNum} de 15`;
+  document.getElementById('progress-pct').textContent = `${pct}%`;
+  document.getElementById('progress-bar').style.width = pct + '%';
+
+  // Question
+  document.getElementById('q-number').textContent = `Pergunta ${qNum}`;
+  document.getElementById('q-text').textContent = q.question;
+
+  // Hint button
+  const hintUsed = hintUsedPerLevel[q.level];
+  const hintBtn = document.getElementById('hint-btn');
+  hintBtn.disabled = hintUsed;
+  document.getElementById('hint-counter').textContent = hintUsed ? '(usada)' : '(1 disponível)';
+
+  // Options
+  const grid = document.getElementById('options-grid');
+  grid.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.innerHTML = `<span class="option-letter">${OPTION_LETTERS[i]}</span><span>${opt}</span>`;
+    btn.onclick = () => selectOption(i);
+    grid.appendChild(btn);
+  });
+
+  // Level transition toast
+  if (currentIndex === 4 || currentIndex === 8 || currentIndex === 12) {
+    showLevelToast(LEVEL_NAMES[q.level]);
+    // Glow card
+    setTimeout(() => {
+      const card = document.getElementById('question-card');
+      card.classList.add('glow');
+      setTimeout(() => card.classList.remove('glow'), 900);
+    }, 200);
+  }
+}
+
+function showLevelToast(label) {
+  const toast = document.getElementById('level-toast');
+  toast.textContent = `🚀 ${label}`;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2800);
+}
+
+// ============================================================
+//  SELECT OPTION
+// ============================================================
+function selectOption(idx) {
+  const q = questions[currentIndex];
+  const grid = document.getElementById('options-grid');
+  const btns = grid.querySelectorAll('.option-btn');
+
+  // Disable all
+  btns.forEach(b => b.disabled = true);
+
+  const isCorrect = idx === q.correct;
+  questionsPlayed.push(q);
+
+  if (isCorrect) {
+    btns[idx].classList.add('correct');
+    answeredCorrectly.push(true);
+    score++;
+    setTimeout(() => showFeedback(true, q), 400);
+    launchConfetti();
+  } else {
+    btns[idx].classList.add('wrong');
+    btns[q.correct].classList.add('correct');
+    answeredCorrectly.push(false);
+    shakeScreen();
+    setTimeout(() => showFeedback(false, q), 500);
+  }
+}
+
+// ============================================================
+//  FEEDBACK
+// ============================================================
+function showFeedback(isCorrect, q) {
+  const overlay = document.getElementById('feedback-overlay');
+  const icon = document.getElementById('feedback-icon');
+  const title = document.getElementById('feedback-title');
+  const thinker = document.getElementById('feedback-thinker');
+  const explanation = document.getElementById('feedback-explanation');
+  const btnNext = document.getElementById('btn-next');
+
+  icon.textContent = isCorrect ? '🎉' : '💡';
+  title.textContent = isCorrect ? 'Acertou!' : 'Não foi dessa vez...';
+  title.className = 'feedback-title ' + (isCorrect ? 'ok' : 'err');
+  thinker.textContent = `Pensador: ${q.thinker}`;
+  explanation.textContent = q.explanation;
+
+  const isLast = currentIndex === questions.length - 1;
+  btnNext.textContent = isLast ? 'Ver resultado final →' : (isCorrect ? 'Próxima →' : 'Continuar →');
+
+  overlay.classList.add('active');
+}
+
+function nextQuestion() {
+  document.getElementById('feedback-overlay').classList.remove('active');
+  currentIndex++;
+  if (currentIndex >= questions.length) {
+    showEnd();
+  } else {
+    renderQuestion();
+  }
+}
+
+// ============================================================
+//  HINT
+// ============================================================
+function useHint() {
+  const q = questions[currentIndex];
+  if (hintUsedPerLevel[q.level]) return;
+  hintUsedPerLevel[q.level] = true;
+
+  const grid = document.getElementById('options-grid');
+  const btns = [...grid.querySelectorAll('.option-btn')];
+
+  // Find wrong indices
+  const wrongIndices = btns.map((_, i) => i).filter(i => i !== q.correct);
+  const toEliminate = shuffle(wrongIndices).slice(0, 2);
+  toEliminate.forEach(i => btns[i].classList.add('eliminated'));
+
+  document.getElementById('hint-btn').disabled = true;
+  document.getElementById('hint-counter').textContent = '(usada)';
+}
+
+// ============================================================
+//  SHAKE
+// ============================================================
+function shakeScreen() {
+  const card = document.getElementById('question-card');
+  card.classList.add('shake');
+  setTimeout(() => card.classList.remove('shake'), 500);
+}
+
+// ============================================================
+//  CONFETTI
+// ============================================================
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#a78bfa', '#60a5fa', '#fde68a', '#34d399', '#f9a8d4', '#fb923c'];
+  const pieces = Array.from({ length: 80 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * -canvas.height * 0.5,
+    size: Math.random() * 8 + 5,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    speed: Math.random() * 3 + 2,
+    drift: (Math.random() - 0.5) * 2,
+    rotation: Math.random() * 360,
+    rotSpeed: (Math.random() - 0.5) * 8,
+    shape: Math.random() > 0.5 ? 'rect' : 'circle'
+  }));
+
+  let frame = 0;
+  const maxFrames = 90;
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotation * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.max(0, 1 - frame / maxFrames);
+      if (p.shape === 'rect') {
+        ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      p.y += p.speed;
+      p.x += p.drift;
+      p.rotation += p.rotSpeed;
+    });
+
+    frame++;
+    if (frame < maxFrames) requestAnimationFrame(draw);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  draw();
+}
+
+// ============================================================
+//  END SCREEN
+// ============================================================
+function showEnd() {
+  const lastQ = questions[currentIndex - 1];
+  const lastLevel = lastQ ? lastQ.level : 1;
+  const prize = score > 0 ? PRIZE_TABLE[score - 1] : "R$ 0";
+  const pct = Math.round((score / 15) * 100);
+
+  document.getElementById('end-title').textContent =
+    score === 15 ? '🏆 VOCÊ GANHOU O MILHÃO!' :
+    score >= 10 ? '🥈 Excelente!' :
+    score >= 6  ? '👏 Bom trabalho!' : '📚 Continue estudando!';
+
+  document.getElementById('end-score').textContent =
+    `${score} de 15 acertos · Parou no ${LEVEL_NAMES[lastLevel]} · ${pct}% de aproveitamento`;
+
+  document.getElementById('end-prize').textContent = score === 15 ? `🎊 ${prize} 🎊` : prize;
+
+  // Stars
+  const starsWrap = document.getElementById('end-stars');
+  if (score < 5) {
+    starsWrap.innerHTML = '<span class="star">⭐</span>';
+  } else if (score < 12) {
+    starsWrap.innerHTML = '<span class="star">⭐</span><span class="star">⭐</span>';
+  } else {
+    starsWrap.innerHTML = '<span class="star">⭐</span><span class="star">⭐</span><span class="star">⭐</span>';
+  }
+
+  // Raio-X: todos os pensadores do jogo sempre aparecem no resumo final
+  const recap = document.getElementById('thinker-recap');
+  recap.innerHTML = '';
+  THINKERS_SUMMARY.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'thinker-item';
+    el.innerHTML = `<div class="thinker-item-name">${t.name}</div><div class="thinker-item-text">${t.text}</div>`;
+    recap.appendChild(el);
+  });
+
+  if (score === 15) {
+    setTimeout(() => { launchConfetti(); setTimeout(launchConfetti, 600); setTimeout(launchConfetti, 1200); }, 300);
+  }
+
+  showScreen('screen-end');
+}
+
+// ============================================================
+//  RESTART
+// ============================================================
+function confirmRestart() {
+  if (confirm('Deseja reiniciar o jogo? O progresso será perdido.')) {
+    startGame();
+  }
+}
+</script>
+</body>
+</html>
